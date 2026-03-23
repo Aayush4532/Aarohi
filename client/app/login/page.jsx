@@ -57,7 +57,7 @@ const Page = () => {
                 }
             );
 
-            if (data.status === 200) {
+            if (data.ok) {
                 const result = await data.json();
                 login(result.user);
                 addToast("Welcome back to Aarohi!", "success");

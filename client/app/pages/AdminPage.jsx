@@ -7,7 +7,7 @@ const AdminPage = () => {
   };
 
   const handleUpdateBookBtn = () => {
-    console.log("Update Book Clicked");
+    window.location.href = "/admin/updateBook";
   };
 
   const handleDeleteBookBtn = () => {

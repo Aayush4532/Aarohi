@@ -63,13 +63,17 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	foundUser.LastActiveDate = time.Now()
+	gap := time.Since(foundUser.LastActiveDate)
+	daysDiff := int(gap.Hours() / 24)
+
+	newStreak := foundUser.Streak
+	if daysDiff > 1 {
+		newStreak = 0
+	}
 
 	update := bson.M{
 		"$set": bson.M{
-			"last_active_date": foundUser.LastActiveDate,
-			"streak":           foundUser.Streak,
-			"longest_streak":   foundUser.LongestStreak,
+			"streak": newStreak,
 		},
 	}
 
@@ -88,9 +92,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
+	toShareUser := foundUser
+	toShareUser.Password = ""
+	w.Header().Set("Content-Type", "application/json")
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Login successful"))
+	json.NewEncoder(w).Encode(toShareUser)
 }
 
 func Signup(w http.ResponseWriter, r *http.Request) {
@@ -140,9 +147,9 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 	user.RatedBooks = []models.RatedBook{}
-	user.ReadDates = []time.Time{};
-	user.ReadBooks = []primitive.ObjectID{};
-	user.CurrentlyReading = []models.CurrentlyReading{};
+	user.ReadDates = []time.Time{}
+	user.ReadBooks = []primitive.ObjectID{}
+	user.CurrentlyReading = []models.CurrentlyReading{}
 
 	user.ID = primitive.NewObjectID()
 	_, err = collection.InsertOne(ctx, user)
@@ -169,7 +176,8 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("user created successfully"))
+	user.Password = ""
+	json.NewEncoder(w).Encode(user)
 }
 
 func GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -306,7 +314,7 @@ func UploadProfilePicture(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "profile image required", http.StatusBadRequest)
 		return
 	}
-	file.Close() 
+	file.Close()
 
 	imageURL, err := utils.UploadPhoto(header, userId, "profile")
 	if err != nil {

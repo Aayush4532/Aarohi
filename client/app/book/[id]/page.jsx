@@ -2,7 +2,9 @@
 
 import Loading from "@/app/components/Loading";
 import Books from "@/app/components/Books";
+import ReviewModal from "@/app/components/ReviewModal";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useToast } from "@/app/contexts/ToastContext";
@@ -21,6 +23,7 @@ const Page = () => {
 
   // Read Session State
   const [isReadSessionModalOpen, setIsReadSessionModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [pagesReadToday, setPagesReadToday] = useState('');
   const [sessionNote, setSessionNote] = useState('');
 
@@ -38,6 +41,10 @@ const Page = () => {
     return rId === book?.id || rId === id;
   }) || null;
 
+  // Check if book is fully read using the ReadBooks array from Go backend
+  const hasReadBook = user?.read_books?.some(bId => String(bId) === String(id) || String(bId) === String(book?.id)) || 
+                      user?.ReadBooks?.some(bId => String(bId) === String(id) || String(bId) === String(book?.id));
+
   // Sync backend notes to frontend UI
   useEffect(() => {
     if (userCurrentlyReading) {
@@ -47,7 +54,7 @@ const Page = () => {
         id: Date.now() + idx,
         content: str,
       })).reverse();
-      
+
       setNotes(formatted);
       setWidgetNoteIndex(0); // Reset widget index to show latest
       if (formatted.length > 0) {
@@ -123,7 +130,7 @@ const Page = () => {
       // Recalculate manually just in case backend `complete` field is missing or 0 but page > 0
       const totalPages = book?.page_count || 0;
       if (progressPercentage === 0 && totalPages > 0 && displayCurrentPage > 0) {
-         progressPercentage = Math.round((displayCurrentPage / totalPages) * 100);
+        progressPercentage = Math.round((displayCurrentPage / totalPages) * 100);
       }
       if (progressPercentage > 100) progressPercentage = 100;
     }
@@ -160,7 +167,7 @@ const Page = () => {
       addToast(`Please write at least 100 words. (Currently: ${wordCount})`, "error");
       return;
     }
-    
+
     // ==========================================
     // BACKEND API CALL GOES HERE!
     // ==========================================
@@ -180,14 +187,14 @@ const Page = () => {
         console.error("Backend Error:", errorText);
         throw new Error("Failed to save progress on backend.");
       }
-      
+
       const data = await res.json();
-      
+
       // Update local overrides instantly using the backend's response payload!
       if (data.total_page !== undefined) setLocalCurrentPageOverride(data.total_page);
       if (data.percent_done !== undefined) setLocalProgressOverride(data.percent_done);
       if (data.book_finished) setLocalProgressOverride(100);
-      
+
       // Refresh global user state to refresh the reading progress UI automatically!
       if (checkUser) await checkUser();
 
@@ -259,28 +266,38 @@ const Page = () => {
               <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] pointer-events-none z-20"></div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                className={`flex-1 text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 ${isStarting
-                  ? 'bg-blue-600/80 cursor-wait'
-                  : 'bg-blue-600 hover:bg-blue-500 hover:shadow-[0_0_30px_rgba(37,99,235,0.5)]'
-                  }`}
-                onClick={handleBtnReadClick}
-                disabled={isStarting}
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3">
+                <button
+                  className={`flex-1 text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 ${isStarting
+                    ? 'bg-blue-600/80 cursor-wait'
+                    : 'bg-blue-600 hover:bg-blue-500 hover:shadow-[0_0_30px_rgba(37,99,235,0.5)]'
+                    }`}
+                  onClick={handleBtnReadClick}
+                  disabled={isStarting}
+                >
+                  {isStarting ? (
+                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                  )}
+                  {isStarting ? 'Starting...' : (userCurrentlyReading ? 'Read' : 'Start Reading')}
+                </button>
+                <button className="w-14 h-[56px] flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 hover:-translate-y-0.5">
+                  <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
+                </button>
+              </div>
+
+              <Link
+                href={`/forum/${id}`}
+                className="w-full text-gray-300 font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 hover:-translate-y-0.5 shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
               >
-                {isStarting ? (
-                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                )}
-                {isStarting ? 'Starting...' : (userCurrentlyReading ? 'Read' : 'Start Reading')}
-              </button>
-              <button className="w-14 h-[56px] flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 hover:-translate-y-0.5">
-                <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
-              </button>
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
+                Join Discussion Forum
+              </Link>
             </div>
 
             {/* Notes Widget */}
@@ -423,8 +440,11 @@ const Page = () => {
             <h2 className="text-2xl font-bold text-white">
               Community Reviews <span className="text-gray-500 text-sm ml-2 font-normal">({book.reviews?.length || 0})</span>
             </h2>
-            {progressPercentage === 100 ? (
-              <button className="text-blue-400 hover:text-blue-300 text-sm font-bold transition-colors shadow-[0_0_10px_rgba(59,130,246,0.3)] bg-blue-500/10 px-4 py-2 rounded-full border border-blue-500/20">
+            {hasReadBook ? (
+              <button 
+                 onClick={() => setIsReviewModalOpen(true)}
+                 className="text-blue-400 hover:text-blue-300 text-sm font-bold transition-colors shadow-[0_0_10px_rgba(59,130,246,0.3)] bg-blue-500/10 px-4 py-2 rounded-full border border-blue-500/20 active:scale-95"
+              >
                 Write a review
               </button>
             ) : (
@@ -432,7 +452,7 @@ const Page = () => {
                 <button disabled className="text-gray-500 line-through text-sm font-medium cursor-not-allowed" title="Finish reading the book to write a review.">
                   Write a review
                 </button>
-                <span className="text-[10px] text-gray-500 italic mt-1">100% completion required</span>
+                <span className="text-[10px] text-gray-500 italic mt-1">Book must be read to review</span>
               </div>
             )}
           </div>
@@ -710,6 +730,13 @@ const Page = () => {
           </div>
         </div>
       )}
+
+      {/* Floating Review Draggable Component */}
+      <ReviewModal 
+         isOpen={isReviewModalOpen} 
+         onClose={() => setIsReviewModalOpen(false)} 
+         bookId={id} 
+      />
 
     </div>
   );

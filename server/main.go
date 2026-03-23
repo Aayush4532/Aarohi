@@ -35,6 +35,7 @@ func main() {
 
 	routes.AuthGroup(mux);
 	routes.BookGroup(mux);
+	routes.ForumGroup(mux);
 	
 	error := config.ConnectDB();
 	if error != nil {

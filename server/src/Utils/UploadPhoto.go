@@ -13,7 +13,9 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	_ "golang.org/x/image/webp"
 
@@ -25,6 +27,7 @@ import (
 const (
 	MaxProfileSize = 2 << 20
 	MaxBookSize    = 5 << 20
+	MaxChatSize    = 16 << 20
 	ProfileWidth   = 500
 	ProfileHeight  = 500
 	BookMaxWidth   = 1000
@@ -44,6 +47,10 @@ func UploadPhoto(fileHeader *multipart.FileHeader, id string, photoType string) 
 	case "book":
 		if fileHeader.Size > MaxBookSize {
 			return "", errors.New("book cover too large (max 5MB)")
+		}
+	case "chat":
+		if fileHeader.Size > MaxChatSize {
+			return "", errors.New("chat image too large (max 16MB)")
 		}
 	default:
 		return "", errors.New("invalid photo type")
@@ -106,6 +113,24 @@ func UploadPhoto(fileHeader *multipart.FileHeader, id string, photoType string) 
 		folder = "books"
 		filename = id + ".png"
 		finalContentType = "image/png"
+
+	case "chat":
+		if contentType != "image/png" && contentType != "image/jpeg" && contentType != "image/gif" && contentType != "image/jpg" && contentType != "image/webp" {
+			return "", errors.New("chat image must be PNG, JPEG, GIF, JPG, or WEBP format")
+		}
+
+		buf := new(bytes.Buffer)
+		err = jpeg.Encode(buf, img, &jpeg.Options{
+			Quality: 75,
+		})
+		if err != nil {
+			return "", err
+		}
+		processed = buf
+
+		folder = "chat"
+		filename = id + ".jpg"
+		finalContentType = "image/jpeg"
 	}
 
 	return uploadToR2(folder, filename, finalContentType, processed)
@@ -141,9 +166,11 @@ func processBook(img image.Image) (*bytes.Buffer, error) {
 }
 
 func uploadToR2(folder, filename, contentType string, body io.Reader) (string, error) {
-
-	key := fmt.Sprintf("%s/%s", folder, filename)
-
+	timestamp := time.Now().Unix();
+	ext := filepath.Ext(filename);
+	nameOnly := strings.TrimSuffix(filename, ext);
+	newFilename := fmt.Sprintf("%s_%d%s", nameOnly, timestamp, ext);
+	key := fmt.Sprintf("%s/%s", folder, newFilename)
 	_, err := config.R2Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:      aws.String(os.Getenv("R2_BUCKET")),
 		Key:         aws.String(key),

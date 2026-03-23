@@ -71,7 +71,7 @@ const SideBar = ({ activeBar, setActiveBar, user, onOpenSearch }) => {
             <div>
               <p className="px-4 text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase mb-4 mt-8">Your Space</p>
               <nav className="space-y-1.5">
-                <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-white/[0.04] rounded-xl font-medium transition-all duration-300">
+                <a href="/MyLibrary" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-white/[0.04] rounded-xl font-medium transition-all duration-300">
                   <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
                   My Library
                 </a>
